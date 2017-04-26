@@ -39,3 +39,7 @@ Modify=Modifier
 Reopen=Rouvrir
 ToClone=Cloner
 Delete=Supprimer
+
+# PDF
+PDFCrabeDepositOnTotalBlockDescription=Modèle PDF contenant le montant des acomptes liés au niveau du bloc total
+DepositsAmount=Montant acompte(s) HT
