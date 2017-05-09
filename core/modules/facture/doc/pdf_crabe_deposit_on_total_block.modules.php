@@ -406,6 +406,13 @@ class pdf_crabe_deposit_on_total_block extends ModelePDFFactures
 				// Loop on each lines
 				for ($i = 0; $i < $nblignes; $i++)
 				{
+					// Si ligne de déduction d'acompte, on ne l'affiche pas
+					if($object->lines[$i]->info_bits == 2 && $object->lines[$i]->desc == '(DEPOSIT)') {
+						$object->total_deposit += $object->lines[$i]->total_ht;
+						$object->total_deposit_ttc += $object->lines[$i]->total_ttc;
+						continue;
+					}
+					
 					$curY = $nexY;
 					$pdf->SetFont('','', $default_font_size - 1);   // Into loop to work with multipage
 					$pdf->SetTextColor(0,0,0);
@@ -1058,19 +1065,6 @@ class pdf_crabe_deposit_on_total_block extends ModelePDFFactures
 		$pdf->SetXY($col2x, $tab2_top + 0);
 		$pdf->MultiCell($largcol2, $tab2_hl, price($sign * ($total_ht + (! empty($object->remise)?$object->remise:0)), 0, $outputlangs), 0, 'R', 1);
 		
-		// Somme Acomptes
-		$somme_acomptes = $this->_getSommeAcomptes($object);
-		if($somme_acomptes > 0) {
-			$index++;
-			$pdf->SetFillColor(255,255,255);
-			$pdf->SetXY($col1x, $tab2_top + $tab2_hl*$index);
-			$pdf->MultiCell($col2x-$col1x, $tab2_hl, $outputlangs->transnoentities("DepositsAmount"), 0, 'L', 1);
-			
-			$total_ht = ($conf->multicurrency->enabled && $object->mylticurrency_tx != 1 ? $object->multicurrency_total_ht : $object->total_ht);
-			$pdf->SetXY($col2x, $tab2_top + $tab2_hl*$index);
-			$pdf->MultiCell($largcol2, $tab2_hl, price($somme_acomptes, 0, $outputlangs), 0, 'R', 1);
-		}
-		
 		// Show VAT by rates and total
 		$pdf->SetFillColor(248,248,248);
 
@@ -1265,9 +1259,28 @@ class pdf_crabe_deposit_on_total_block extends ModelePDFFactures
 				$pdf->SetFillColor(224,224,224);
 				$pdf->MultiCell($col2x-$col1x, $tab2_hl, $outputlangs->transnoentities("TotalTTC"), $useborder, 'L', 1);
 
-				$total_ttc = ($conf->multicurrency->enabled && $object->multiccurency_tx != 1) ? $object->multicurrency_total_ttc : $object->total_ttc;
 				$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-				$pdf->MultiCell($largcol2, $tab2_hl, price($sign * $total_ttc, 0, $outputlangs), $useborder, 'R', 1);
+				$pdf->MultiCell($largcol2, $tab2_hl, price($sign * $object->total_ttc - $object->total_deposit_ttc, 0, $outputlangs), $useborder, 'R', 1);
+				
+				// Total acomptes TTC
+				$index++;
+				$pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
+				$pdf->SetTextColor(0,0,60);
+				$pdf->SetFillColor(224,224,224);
+				$pdf->MultiCell($col2x-$col1x, $tab2_hl, 'Acomptes versés', $useborder, 'L', 0);
+
+				$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
+				$pdf->MultiCell($largcol2, $tab2_hl, price($sign * $object->total_deposit_ttc, 0, $outputlangs), $useborder, 'R', 0);
+				
+				// Total TTC après acompte
+				$index++;
+				$pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
+				$pdf->SetTextColor(0,0,60);
+				$pdf->SetFillColor(224,224,224);
+				$pdf->MultiCell($col2x-$col1x, $tab2_hl, 'Nouveau total TTC', $useborder, 'L', 1);
+
+				$pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
+				$pdf->MultiCell($largcol2, $tab2_hl, price($sign * $object->total_ttc, 0, $outputlangs), $useborder, 'R', 1);
 			}
 		}
 
@@ -1751,18 +1764,6 @@ class pdf_crabe_deposit_on_total_block extends ModelePDFFactures
 		global $conf;
 		$showdetails=$conf->global->MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS;
 		return pdf_pagefoot($pdf,$outputlangs,'INVOICE_FREE_TEXT',$this->emetteur,$this->marge_basse,$this->marge_gauche,$this->page_hauteur,$object,$showdetails,$hidefreetext);
-	}
-	
-	function _getSommeAcomptes(&$object) {
-		
-		$somme = 0;
-		// Les lignes issues d'acomptes peuvent pas être modifiées, donc on peut se fier à la description
-		foreach($object->lines as &$line) {
-			if($line->desc === '(DEPOSIT)')$somme+=$line->total_ht;
-		}
-		
-		return abs($somme);
-
 	}
 
 }
